@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News-to-Comic Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        input, select, button {
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input, select {
+            width: 100%;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .news-card {
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .news-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            transform: translateY(-5px);
+        }
+
+        .news-card.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .news-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .news-card h3 {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .news-card p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .comic-result {
+            text-align: center;
+            margin-top: 30px;
+            padding: 30px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+
+        .comic-result img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .panel-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .panel-selector label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📰 News-to-Comic Generator 🎨</h1>
+        <p class="subtitle">Turn news articles into comic strips powered by AI</p>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search news by keyword...">
+            </div>
+            <button onclick="searchNews()">🔍 Search</button>
+            
+            <select id="languageSelect">
+                <option value="en">English</option>
+                <option value="ml">മലയാളം (Malayalam)</option>
+                <option value="hi">हिंदी (Hindi)</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+            </select>
+            
+            <select id="categorySelect" onchange="loadNews()">
+                <option value="general">General News</option>
+                <option value="entertainment">🎬 Entertainment (Easy)</option>
+                <option value="sports">⚽ Sports (Easy)</option>
+                <option value="technology">💻 Technology</option>
+                <option value="science">🔬 Science</option>
+                <option value="health">🏥 Health</option>
+                <option value="business">Business</option>
+            </select>
+            <button onclick="loadNews()">📰 Load News</button>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+            <button onclick="quickSearch('movies')" style="padding: 8px 15px; font-size: 14px;">🎬 Movies</button>
+            <button onclick="quickSearch('music')" style="padding: 8px 15px; font-size: 14px;">🎵 Music</button>
+            <button onclick="quickSearch('gaming')" style="padding: 8px 15px; font-size: 14px;">🎮 Gaming</button>
+            <button onclick="quickSearch('kerala')" style="padding: 8px 15px; font-size: 14px;">🌴 Kerala</button>
+            <button onclick="quickSearch('cricket')" style="padding: 8px 15px; font-size: 14px;">🏏 Cricket</button>
+            <button onclick="quickSearch('food')" style="padding: 8px 15px; font-size: 14px;">🍕 Food</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading news articles...</p>
+        </div>
+
+        <div id="newsGrid" class="news-grid"></div>
+
+        <div id="generateSection" class="hidden" style="text-align: center; margin: 30px 0;">
+            <div class="panel-selector">
+                <label>Number of Panels:</label>
+                <select id="panelCount">
+                    <option value="3">3 Panels</option>
+                    <option value="4" selected>4 Panels</option>
+                    <option value="6">6 Panels</option>
+                </select>
+            </div>
+            <button onclick="generateComic()" id="generateBtn" style="margin-top: 20px; font-size: 1.2em; padding: 15px 30px;">
+                ✨ Generate Comic ✨
+            </button>
+        </div>
+
+        <div id="comicLoading" class="loading hidden">
+            <div class="spinner"></div>
+            <p id="comicStatus">Generating your comic... This may take 1-2 minutes...</p>
+        </div>
+
+        <div id="comicResult" class="comic-result hidden"></div>
+    </div>
+
+    <script>
+        let selectedArticle = null;
+
+        async function loadNews() {
+            const category = document.getElementById('categorySelect').value;
+            const language = document.getElementById('languageSelect').value;
+            showLoading(true);
+            hideError();
+
+            try {
+                const response = await fetch(`/api/fetch-news?category=${category}&language=${language}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayNews(data.articles);
+                } else {
+                    showError(data.error || 'Failed to load news');
+                }
+            } catch (error) {
+                showError('Error connecting to server: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function searchNews() {
+            const query = document.getElementById('searchInput').value.trim();
+            const language = document.getElementById('languageSelect').value;
+            
+            if (!query) {
+                alert('Please enter a search term');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            try {
+                const response = await fetch('/api/search-news', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, language })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    displayNews(data.articles);
+                } else {
+                    showError(data.error || 'Failed to search news');
+                }
+            } catch (error) {
+                showError('Error connecting to server: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function quickSearch(topic) {
+            document.getElementById('searchInput').value = topic;
+            searchNews();
+        }
+
+        function displayNews(articles) {
+            const grid = document.getElementById('newsGrid');
+            grid.innerHTML = '';
+
+            if (articles.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #666;">No articles found</p>';
+                return;
+            }
+
+            articles.forEach((article, index) => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                card.onclick = () => selectArticle(article, card);
+
+                const imgSrc = article.urlToImage || 'https://via.placeholder.com/300x180?text=No+Image';
+                
+                card.innerHTML = `
+                    ${article.urlToImage ? `<img src="${article.urlToImage}" onerror="this.src='https://via.placeholder.com/300x180?text=No+Image'" alt="Article image">` : ''}
+                    <h3>${article.title}</h3>
+                    <p>${article.description || 'No description available'}</p>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function selectArticle(article, cardElement) {
+            // Remove previous selection
+            document.querySelectorAll('.news-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // Select new article
+            cardElement.classList.add('selected');
+            selectedArticle = article;
+
+            // Show generate button
+            document.getElementById('generateSection').classList.remove('hidden');
+            document.getElementById('comicResult').classList.add('hidden');
+        }
+
+        async function generateComic() {
+            if (!selectedArticle) {
+                alert('Please select a news article first');
+                return;
+            }
+
+            const numPanels = parseInt(document.getElementById('panelCount').value);
+            const generateBtn = document.getElementById('generateBtn');
+            const comicLoading = document.getElementById('comicLoading');
+            const comicResult = document.getElementById('comicResult');
+
+            generateBtn.disabled = true;
+            comicLoading.classList.remove('hidden');
+            comicResult.classList.add('hidden');
+            hideError();
+
+            try {
+                updateComicStatus('Fetching article content...');
+                
+                const response = await fetch('/api/generate-comic', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        url: selectedArticle.url,
+                        title: selectedArticle.title,
+                        description: selectedArticle.description,
+                        num_panels: numPanels
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    comicResult.innerHTML = `
+                        <h2>${data.title}</h2>
+                        <img src="${data.comic_url}" alt="Generated Comic">
+                        <p style="margin-top: 15px;">
+                            <a href="${data.comic_url}" download="comic.png">
+                                <button>💾 Download Comic</button>
+                            </a>
+                        </p>
+                    `;
+                    comicResult.classList.remove('hidden');
+                    showSuccess('Comic generated successfully! 🎉');
+                } else {
+                    showError(data.error || 'Failed to generate comic');
+                }
+            } catch (error) {
+                showError('Error generating comic: ' + error.message);
+            } finally {
+                comicLoading.classList.add('hidden');
+                generateBtn.disabled = false;
+            }
+        }
+
+        function updateComicStatus(message) {
+            document.getElementById('comicStatus').textContent = message;
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+        }
+
+        function showError(message) {
+            hideError();
+            const error = document.createElement('div');
+            error.className = 'error';
+            error.textContent = '❌ ' + message;
+            document.querySelector('.container').insertBefore(error, document.getElementById('newsGrid'));
+        }
+
+        function showSuccess(message) {
+            const success = document.createElement('div');
+            success.className = 'success';
+            success.textContent = '✅ ' + message;
+            document.getElementById('comicResult').insertBefore(success, document.getElementById('comicResult').firstChild);
+        }
+
+        function hideError() {
+            document.querySelectorAll('.error, .success').forEach(el => el.remove());
+        }
+
+        // Load news on page load
+        window.onload = loadNews;
+    </script>
+</body>
+</html>
